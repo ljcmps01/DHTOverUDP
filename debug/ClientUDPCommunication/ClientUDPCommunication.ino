@@ -90,7 +90,7 @@ void loop() {
     Serial.println(F("Datos recibidos correctamente"));
   }
 
-  dtostrf(temperature,4,6,replyBuffer);
+  dtostrf(temperature,1,2,replyBuffer);
   //sprintf(replyBuffer,ARRAY_SIZE,"%f",temperature);
   Serial.print(F("Enviando: "));
   Serial.println(replyBuffer);
@@ -100,7 +100,7 @@ void loop() {
   Udp.write(replyBuffer,ARRAY_SIZE);
   Udp.endPacket();
   
-  delay(1000);
+  delay(3000);
 }
 
 
