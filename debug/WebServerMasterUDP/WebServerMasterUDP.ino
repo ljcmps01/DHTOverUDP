@@ -60,6 +60,7 @@ void setup() {
 
 void loop() {
   int packetSize = Udp.parsePacket();
+  char logMsg[30]="";
   if (packetSize) {
       //Apenas se recibe un paquete se guarda su entrada
       Udp.read(incomingTemperature, packetSize);
@@ -76,11 +77,14 @@ void loop() {
       }
       Serial.print(", port ");
       Serial.println(Udp.remotePort());
-  
+
+      strcat(logMsg,incomingTemperature);
       //Se imprime la temperatura leida
       Serial.println("Contents:");
       Serial.println(incomingTemperature); 
-  }
+      }
+
+      
 //   listen for incoming clients
   EthernetClient client = server.available();
   if (client) {
