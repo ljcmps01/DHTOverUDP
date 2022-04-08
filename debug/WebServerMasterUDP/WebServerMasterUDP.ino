@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>
+#include "IP2Room.h"
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -60,6 +61,7 @@ void setup() {
 
 void loop() {
   int packetSize = Udp.parsePacket();
+  int id;
   char logMsg[30]="";
   if (packetSize) {
       //Apenas se recibe un paquete se guarda su entrada
@@ -75,13 +77,15 @@ void loop() {
           Serial.print(".");
         }
       }
+      id=remote[3];
       Serial.print(", port ");
       Serial.println(Udp.remotePort());
-
+      strcat(logMsg,getRoom(id));
+      strcat(logMsg,"\t|\t");
       strcat(logMsg,incomingTemperature);
       //Se imprime la temperatura leida
       Serial.println("Contents:");
-      Serial.println(incomingTemperature); 
+      Serial.println(logMsg); 
       }
 
       
@@ -113,7 +117,8 @@ void loop() {
           client.println("<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">");
           client.println("</header>");
           client.println("<html>");
-          client.print("| Sala |");
+          client.print(getRoom(id));
+          client.print("  |   ");
           client.print(incomingTemperature);
           client.print("°C ");
           client.print("<br />");

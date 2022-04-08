@@ -17,7 +17,7 @@ char *salas[arrayLength]={
   "Bouchard"
 };
 
-int getID(char *IP, int index){
+/*int getID(char *IP, int index){
   int int_ip[4];
   int c=0;
   char aux[3];
@@ -41,7 +41,7 @@ int getID(char *IP, int index){
 
   int_ip[c]=atoi(aux);
   return int_ip[index-1];
-}
+}*/
 
 char *getRoom(int IP){
   for(int i=0;i<arrayLength;i++){
