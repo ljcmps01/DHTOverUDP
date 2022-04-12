@@ -1,38 +1,38 @@
 /*
- UDPSendReceiveString:
- This sketch receives UDP message strings, prints them to the serial port
- and sends an "acknowledge" string back to the sender
+ClientUDPCommunication
+Este programa se encarga de leer la informacion del DHT22
+y transmitirla via UDP al servidor web (Arduino MEGA)
 
- A Processing sketch is included at the end of file that can be used to send
- and received messages for testing with a computer.
-
- created 21 Aug 2010
- by Michael Margolis
-
- This code is in the public domain.
+En caso de conectar la placa y no recibir los datos deseados,
+Conectar la placa mediante USB a la computadora y revisar los registros
+impresos en el monitor serial
  */
 
 
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include "DHT.h"
-
 #include <stdlib.h>
+
+#define INTERVALO 3 //Intervalo en segundos entre lectura y lectura del sensor
 
 #define DHTPIN 2
 #define DHTTYPE DHT22
 
 #define ARRAY_SIZE 32
 
-// Enter a MAC address and IP address for your controller below.
-// The IP address will be dependent on your local network:
+//La direccion IP y MAC deben ser UNICAS entre cada dispositivo
+//Corroborar que ninguno de los valores coincida con ninguna de
+//las maquinas que se encuentren en la isla de conexión
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEE
 };
+//El 3er numero de la IP debe coincidir con el proporcionado por el switch
 IPAddress ip(192, 168, 20, 201);
 
 unsigned int localPort = 26026;      // local port to listen on
 
+//IP y puerto de comunicación del servidor web
 char masterIP[]="192.168.20.200";
 int masterPort=26026;
 
@@ -40,67 +40,60 @@ int masterPort=26026;
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
 char replyBuffer[ARRAY_SIZE];
 
+
+
+
+// Creo las instancias de la libreria UDP para la comunicacion con el servidor
+// y el DHT para la lectura del sensor
+EthernetUDP Udp;
 DHT dht(DHTPIN,DHTTYPE);
 
-// An EthernetUDP instance to let us send and receive packets over UDP
-EthernetUDP Udp;
-
 void setup() {
-  // You can use Ethernet.init(pin) to configure the CS pin
-  //Ethernet.init(10);  // Most Arduino shields
-  //Ethernet.init(5);   // MKR ETH shield
-  //Ethernet.init(0);   // Teensy 2.0
-  //Ethernet.init(20);  // Teensy++ 2.0
-  //Ethernet.init(15);  // ESP8266 with Adafruit Featherwing Ethernet
-  //Ethernet.init(33);  // ESP32 with Adafruit Featherwing Ethernet
-
-  // start the Ethernet
+  // Inicializacion de la conexion Ethernet
   Ethernet.begin(mac, ip);
 
-  // Open serial communications and wait for port to open:
   Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
 
-  // Check for Ethernet hardware present
+  // Chequeo que el shield de Ethernet esté conectado correctamente
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    Serial.println("El Ethernet shield no esta disponible.");
     while (true) {
       delay(1); // do nothing, no point running without Ethernet hardware
     }
   }
   if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
+    Serial.println("Cable Ethernet desconectado.");
   }
 
+//  Inicializamos los componentes
   dht.begin();
-  // start UDP
   Udp.begin(localPort);
 }
 
 void loop() {
-  //reads DHT value
+  //Leemos los datos del DHT22
   float temperature = dht.readTemperature();
+
+  //Si lo recibido no es un numero
   if(isnan(temperature)){
-    Serial.println(F("Lectura del sensor fallida"));
-    return;
+    Serial.println(F("Lectura del sensor fallida"));//Lanzamos un aviso de error
   }
+  //Caso contrario
   else{
+    //Avisamos que se leyó correctamente
     Serial.println(F("Datos recibidos correctamente"));
+    dtostrf(temperature,1,2,replyBuffer); //Guardamos la lectura en el buffer de salida en formato string
+    Serial.print(F("Enviando: "));        //y mostramos lo que estamos por mandar
+    Serial.println(replyBuffer);
+    
+    Udp.beginPacket(masterIP, masterPort);  //Comenzamos la comunicacion al servidor
+    Udp.write(replyBuffer,ARRAY_SIZE);      //Escribimos el mensaje en el buffer
+    Udp.endPacket();                        //Enviamos la informacion y cerramos la comunicación
   }
 
-  dtostrf(temperature,1,2,replyBuffer);
-  //sprintf(replyBuffer,ARRAY_SIZE,"%f",temperature);
-  Serial.print(F("Enviando: "));
-  Serial.println(replyBuffer);
   
-  // send a reply to the IP address and port that sent us the packet we received
-  Udp.beginPacket(masterIP, masterPort);
-  Udp.write(replyBuffer,ARRAY_SIZE);
-  Udp.endPacket();
   
-  delay(3000);
+  delay(INTERVALO*1000);
 }
 
 
