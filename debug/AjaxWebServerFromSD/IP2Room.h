@@ -18,4 +18,7 @@ int dataLog(char* data, char* filename);
 //del vector de ip's de la sala
 //Si no hay match devuelve -1
 int getIndex(int ip);
+
+//Prepara la string para que sea añadido al archivo de registro desde el main
+char* parseLog(char *tiempo, int index, float grados);
 #endif

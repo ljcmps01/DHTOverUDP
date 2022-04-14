@@ -39,6 +39,8 @@
 #define DHTPIN 2
 #define DHTTYPE DHT22
 
+#define INTERVALO 10
+
 // Direccion MAC del Master
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 IPAddress ip(192, 168, 20, 200); // Direccion IP, cambiar segun switch
@@ -48,6 +50,7 @@ EthernetServer server(80);  // Habilitamos el servidor web en el puerto 80
 unsigned int localPort = 26026;   //Puerto de escucha
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer de paquetes entrantes,
 
+//Preparo los archivos y variables de la web
 File webFile;                     // Archivo de la pagina web en la SD
 char HTTP_req[REQ_BUF_SZ] = {0};  // buffered HTTP request stored as null terminated string
 char req_index = 0;               // index into HTTP_req buffer
@@ -59,6 +62,8 @@ EthernetUDP Udp;
 extern int ipList[];
 
 float tempSalas[SIZE]={0};
+
+unsigned long millisPrevio=0;
 
 void setup(){    
     Serial.begin(9600);       
@@ -86,11 +91,15 @@ void setup(){
     dht.begin();
 }
 
+
+
 void loop()
 {   
     float temperatura;
     int packetSize=Udp.parsePacket();
     int id;
+
+    unsigned long millisActual=millis();
 
     /*----------------------------------------------------------------
      *            INICIO DE LECTURA DE PAQUETE DE DATOS
@@ -130,6 +139,29 @@ void loop()
      *            FIN DE LECTURA DE PAQUETE DE DATOS
      ----------------------------------------------------------------*/
 
+    if(millisActual - millisPrevio>=INTERVALO*1000){
+      millisPrevio=millisActual;
+      webFile = SD.open("DATALOG.txt",FILE_WRITE);
+      if (dataLog) {
+          char hora[6];
+          
+          Serial.println("Escribiendo Datalog.txt...");
+          for(int i=0;i<SIZE;i++){
+            char* buff=parseLog(itoa(millisActual,hora,6),i,tempSalas[i]);                
+            Serial.println(buff);
+            webFile.print(buff);
+            webFile.print("#");            
+            webFile.println("----------------------------------------------#");
+          }
+          // close the file:
+          webFile.close();
+          Serial.println("Listo.");
+        } 
+        else {
+          // if the file didn't open, print an error:
+          Serial.println("error abriendo el Datalog");
+        }
+    }
 
     /*----------------------------------------------------------------
      *            INICIO DE PAGINA WEB
@@ -176,6 +208,36 @@ void loop()
                             }
                             webFile.close(); //Cierro el archivo
                         }
+                        webFile = SD.open("DATALOG.txt");
+                        if (webFile) {
+                            int archivosLeidos=0;
+                            int flagArchivos=1;
+                          
+                            while(webFile.available()) {
+                              if(flagArchivos){
+                              char caracter=webFile.read();
+                              if(caracter!='#'){
+                                if(archivosLeidos<24*2){
+                                  client.write(caracter); // Envio la pagina web al cliente
+                                  
+                                }
+                                else{
+                                  flagArchivos=0;
+                                  break;
+                                }
+                                
+                              }
+                              else{
+                                archivosLeidos++;  
+                                client.write("<br>");
+                              }
+                            }
+                          }
+                          webFile.close(); //Cierro el archivo
+                        }
+                        client.write("</div>");
+                        client.write("</body>");
+                        client.write("</html>");
                     }
                     // Muestro en el monitor serial el pedido HTTP del cliente
                     Serial.println(HTTP_req);
@@ -210,7 +272,7 @@ void XML_response(EthernetClient cl,float t)
         case 0:    
           cl.print("<lecturaBajo>");
           if(!tempSalas[i]){
-            cl.print("ERROR");  
+            cl.print("...");  
           }
           else{
             cl.print(tempSalas[i]);
@@ -224,7 +286,7 @@ void XML_response(EthernetClient cl,float t)
         case 1:    
           cl.print("<lecturaNueva>");
           if(!tempSalas[i]){
-            cl.print("ERROR");  
+            cl.print("...");  
           }
           else{
             cl.print(tempSalas[i]);
@@ -238,7 +300,7 @@ void XML_response(EthernetClient cl,float t)
         case 2:    
           cl.print("<lecturaBouchard>");
           if(!tempSalas[i]){
-            cl.print("ERROR");  
+            cl.print("...");  
           }
           else{
             cl.print(tempSalas[i]);
